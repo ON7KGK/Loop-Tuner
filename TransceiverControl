@@ -1,0 +1,83 @@
+﻿using OmniRig;
+using System;
+using System.Timers;
+
+namespace Loop_Tuner
+{
+    public class TransceiverControl
+    {
+        private OmniRigX OmniRigEngine;
+        private IRigX rig;
+        private bool isUsingRig1 = true; // Par défaut, RIG1
+        private System.Timers.Timer updateTimer; // Utilisation explicite de System.Timers.Timer
+        private int updateInterval = 1000; // Par défaut, 1 seconde
+
+        // Événement pour notifier le formulaire de la fréquence
+        public event Action<string>? FrequencyUpdated;
+
+        public TransceiverControl()
+        {
+            OmniRigEngine = new OmniRigX();
+            SelectRig(isUsingRig1);
+            InitializeTimer();
+        }
+
+        // Initialiser le timer de mise à jour
+        private void InitializeTimer()
+        {
+            updateTimer = new System.Timers.Timer(updateInterval);
+            updateTimer.Elapsed += UpdateFrequency;
+            updateTimer.AutoReset = true;
+            updateTimer.Enabled = true;
+        }
+
+        // Changer l’intervalle de mise à jour
+        public void SetUpdateInterval(int milliseconds)
+        {
+            updateInterval = milliseconds;
+            updateTimer.Interval = updateInterval;
+        }
+
+        // Sélectionner entre RIG1 et RIG2
+        public void SelectRig(bool useRig1)
+        {
+            isUsingRig1 = useRig1;
+            rig = isUsingRig1 ? OmniRigEngine.Rig1 : OmniRigEngine.Rig2;
+        }
+
+        // Obtenir l'état actuel du rig (RIG1 ou RIG2)
+        public string GetCurrentRig()
+        {
+            return isUsingRig1 ? "RIG1" : "RIG2";
+        }
+
+        // Vérifier si le rig est en ligne (en utilisant 4 comme valeur "Online")
+        public bool IsRigOnline()
+        {
+            try
+            {
+                int status = Convert.ToInt32(rig.Status);
+                return status == 4; // 4 représente "Online" pour RIG1 dans cette configuration
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // Obtenir la fréquence et déclencher l'événement pour l'interface
+        private void UpdateFrequency(object sender, ElapsedEventArgs e)
+        {
+            if (IsRigOnline())
+            {
+                long frequencyHz = rig.GetRxFrequency();
+                double frequencyMHz = frequencyHz / 1_000_000.0;
+                FrequencyUpdated?.Invoke($"Frequency ({GetCurrentRig()}): {frequencyMHz:F6} MHz");
+            }
+            else
+            {
+                FrequencyUpdated?.Invoke($"{GetCurrentRig()} hors ligne");
+            }
+        }
+    }
+}

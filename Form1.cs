@@ -1,3 +1,4 @@
+// Version qui semble fonctionner (omnirig ok mais com teensy à tester)
 using System;
 using System.Windows.Forms;
 
